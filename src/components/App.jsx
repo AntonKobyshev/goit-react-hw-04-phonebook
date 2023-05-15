@@ -1,12 +1,13 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { ContactForm } from './ContactForm/ContactForm';
 import { ContactList } from './ContactList/ContactList';
 import { Filter } from './Filter/Filter';
 import { Title, Subtitle, Container } from './App.styled';
-import initialContacts from '../data/contacts';
 import { AiFillContacts, AiFillBook } from 'react-icons/ai';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import initialContacts from 'data/contacts';
+import { useLocalStorage } from 'hooks/useLocalStorage';
 
 const notifyOptions = {
   position: 'top-right',
@@ -21,80 +22,73 @@ const notifyOptions = {
 
 const LS_KEY = 'contacts';
 
-export class App extends React.Component {
-  state = {
-    contacts: initialContacts,
-    filter: '',
-    name: '',
-    number: '',
+export const App = () => {
+  const [contacts, setContacts] = useLocalStorage('contacts', initialContacts);
+  const [filter, setFilter] = useState('');
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify(contacts));
+  }, [contacts]);
+
+  const addContact = newContact => {
+    setContacts(prevContacts => {
+      if (
+        prevContacts.find(
+          contact =>
+            contact.name.toLowerCase().trim() ===
+            newContact.name.toLowerCase().trim()
+        )
+      ) {
+        toast.error(
+          `The name ${newContact.name} is already in contacts`,
+          notifyOptions
+        );
+        return prevContacts;
+      }
+      if (
+        prevContacts.find(
+          contact => contact.number.trim() === newContact.number.trim()
+        )
+      ) {
+        toast.error(
+          `The number ${newContact.number} is already in contacts`,
+          notifyOptions
+        );
+        return prevContacts;
+      }
+      return [newContact, ...prevContacts];
+    });
   };
 
-  componentDidMount() {
-    const data = localStorage.getItem(LS_KEY);
+  const onFilterChange = e => {
+    setFilter(e.currentTarget.value);
+  };
 
-    if (data) {
-      this.setState({ contacts: JSON.parse(data) });
-    }
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    const { contacts } = this.state;
-
-    if (prevState.contacts !== contacts) {
-      localStorage.setItem(LS_KEY, JSON.stringify(this.state.contacts));
-    }
-  }
-
-  addContact = data => {
-    this.setState(({ contacts }) =>
-      contacts.find(contact => contact.name.toLowerCase().trim() ===
-          data.name.toLowerCase().trim() )
-        ? toast.error(`The name ${data.name} is already in contacts`, notifyOptions)
-        : contacts.find(contact => contact.number.trim() === data.number.trim() )
-        ? toast.error(`The number ${data.number} is already in contacts`, notifyOptions)
-        : { contacts: [data, ...contacts] }
-        
+  const deleteContact = contactId => {
+    setContacts(prevContacts =>
+      prevContacts.filter(contact => contact.id !== contactId)
     );
   };
 
-  onFilterChange = e => {
-    const { value } = e.currentTarget;
-    this.setState({ filter: value });
-  };
+  const filteredContacts = contacts.filter(contact =>
+    contact.name.toLowerCase().includes(filter.toLowerCase())
+  );
 
-  deleteContact = contactId => {
-    this.setState(prevState => ({
-      contacts: prevState.contacts.filter(contact => contact.id !== contactId),
-    }));
-  };
+  return (
+    <Container>
+      <Title>
+        <AiFillBook size="36" />
+        Phonebook
+      </Title>
+      <ContactForm onSubmit={addContact} />
 
-  render() {
-    const { contacts, filter } = this.state;
-
-    const filteredContacts = contacts.filter(contact =>
-      contact.name.toLowerCase().includes(filter.toLowerCase())
-    );
-
-    return (
-      
-      <Container>
-        <Title>
-          <AiFillBook size="36" />
-          Phonebook
-        </Title>
-        <ContactForm onSubmit={this.addContact} />
-
-        <Subtitle>
-          <AiFillContacts size="36" />
-          Contacts
-        </Subtitle>
-        <Filter value={filter} onFilterChange={this.onFilterChange} />
-        <ContactList
-          deleteContact={this.deleteContact}
-          contacts={filteredContacts}
-        />
-        <ToastContainer />
-      </Container>
-    );
-  }
-}
+      <Subtitle>
+        <AiFillContacts size="36" />
+        Contacts
+      </Subtitle>
+      <Filter value={filter} onFilterChange={onFilterChange} />
+      <ContactList deleteContact={deleteContact} contacts={filteredContacts} />
+      <ToastContainer />
+    </Container>
+  );
+};
