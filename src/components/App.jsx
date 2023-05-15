@@ -22,7 +22,7 @@ const notifyOptions = {
 
 const LS_KEY = 'contacts';
 
-export const App = () => {
+export function App () {
   const [contacts, setContacts] = useLocalStorage('contacts', initialContacts);
   const [filter, setFilter] = useState('');
 
